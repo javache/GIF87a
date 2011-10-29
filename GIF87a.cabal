@@ -1,0 +1,20 @@
+Name:                GIF87a
+Version:             0.0
+Description:         A simple GIF87a parser
+License:             GPL
+License-file:        LICENSE
+Author:              Pieter De Baets
+Maintainer:          Pieter.DeBaets@UGent.be
+Build-Type:          Simple
+Cabal-Version:       >=1.2
+
+Library
+  Hs-Source-Dirs:    GIF87a
+  Exposed-Modules:   GIF87a.Image, GIF87a.Parser
+  Ghc-options:       -Wall
+  Build-Depends:     attoparsec >= 0.9
+
+Executable gif-parser
+  Build-Depends:     base >= 3 && < 5
+  Main-is:           Parser.hs
+  Hs-Source-Dirs:    GIF87a

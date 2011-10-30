@@ -23,7 +23,7 @@ data ImageDescriptor = Image { imageLeft :: Word16
                              , localColorMap :: Maybe [ColorMapBlock]
                              , interlaced :: Bool
                              , bitsPerPixelI :: Word8
-                             , pixels :: [Word8]
+                             , pixels :: [[Word8]]
                              } deriving (Eq, Show)
 
 data ColorMapBlock = Color { red :: Word8

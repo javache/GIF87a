@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module GIF87a.Parser where
+module GIF87a.Parser (parser) where
 
 import Control.Applicative
 import Control.Monad
@@ -7,6 +7,7 @@ import Data.Attoparsec.Char8
 import Data.Binary.Strict.BitGet
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as B
+import qualified Data.List as L
 import Data.Word (Word8, Word16)
 import Prelude hiding (take)
 
@@ -87,13 +88,17 @@ parseImageDescriptor = do
                , pixels = pixels
                }
 
-parseRaster :: Word16 -> Word16 -> Word8 -> Bool -> Parser [Word8]
+parseRaster :: Word16 -> Word16 -> Word8 -> Bool -> Parser [[Word8]]
 parseRaster rows cols bits interlaced = do
   codeSize <- pure fromIntegral <*> parseWord8
-  pure concat <*> manyTill (do
+  pure (chunk (fromIntegral cols) . concat) <*> manyTill (do
       blockSize <- pure fromIntegral <*> parseWord8
       pure (decodeLZW codeSize) <*> take blockSize
     ) (char '\NUL')
+  where
+    chunk :: Int -> [a] -> [[a]]
+    chunk n [] = []
+    chunk n xs = L.take n xs : chunk n (L.drop n xs)
 
 parseWord8 :: Parser Word8
 parseWord8 = B.head <$> take 1

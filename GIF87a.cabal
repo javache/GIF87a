@@ -9,12 +9,11 @@ Build-Type:          Simple
 Cabal-Version:       >=1.2
 
 Library
-  Hs-Source-Dirs:    GIF87a
   Exposed-Modules:   GIF87a.Image, GIF87a.Parser
-  Ghc-options:       -Wall
-  Build-Depends:     attoparsec >= 0.9
+  Build-Depends:     attoparsec >= 0.9 && < 0.10,
+                     bytestring >= 0.9 && < 0.10,
+                     binary-strict >= 0.4 && < 0.5
 
 Executable gif-parser
   Build-Depends:     base >= 3 && < 5
-  Main-is:           Parser.hs
-  Hs-Source-Dirs:    GIF87a
+  Main-is:           GIF87a-test.hs

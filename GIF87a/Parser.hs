@@ -88,13 +88,12 @@ parseImageDescriptor = do
                , pixels = pixels
                }
 
+-- TODO: support interlacing
 parseRaster :: Word16 -> Word16 -> Word8 -> Bool -> Parser [[Word8]]
 parseRaster rows cols bits interlaced = do
   codeSize <- pure fromIntegral <*> parseWord8
-  pure (chunk (fromIntegral cols) . concat) <*> manyTill (do
-      blockSize <- pure fromIntegral <*> parseWord8
-      pure (decodeLZW codeSize) <*> take blockSize
-    ) (char '\NUL')
+  pure (chunk (fromIntegral cols) . decodeLZW codeSize)
+    <*> manyTill (parseWord8 >>= take . fromIntegral) (char '\NUL')
   where
     chunk :: Int -> [a] -> [[a]]
     chunk n [] = []

@@ -2,6 +2,7 @@
 import Control.Monad (forM_)
 import Data.Attoparsec (parseOnly)
 import qualified Data.ByteString as B
+import Data.Either
 import System.Environment
 
 import GIF87a.Image
@@ -16,7 +17,7 @@ main = do
     let result = parseOnly parser input
     case result of
       Left err  -> putStrLn err
-      Right img -> let x = pixels $ head $ images img
+      Right img -> let x = pixels $ head $ lefts $ descriptors img
                    in do putStrLn $ show img
                          putStrLn $ show (length x, map length x)
     )

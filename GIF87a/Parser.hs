@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
 module GIF87a.Parser (parser) where
 
 import Control.Applicative
@@ -8,6 +8,7 @@ import Data.Binary.Strict.BitGet
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as B
 import qualified Data.List as L
+import qualified Data.Map as M
 import Data.Word (Word8, Word16)
 import Prelude hiding (take)
 
@@ -21,14 +22,15 @@ parser = do
   signature <- string "GIF87a"
   (screen, usesGlobalColorMap) <- parseScreenDescriptor
   colorMap <- parseColorMap usesGlobalColorMap (bitsPerPixelS screen)
-  -- TODO: check for GIF Extension block
-  images <- many1 parseImageDescriptor
-  char ';' -- 0x3B
+  blocks <- many1 $
+    (Left <$> parseImageDescriptor) <|>
+    (Right <$> parseExtensionBlock)
+  char ';'  -- 0x3B
 
   return Header { signature = signature
                 , screenDescriptor = screen
                 , globalColorMap = colorMap
-                , images = images
+                , descriptors = blocks
                 }
 
 parseScreenDescriptor :: Parser (ScreenDescriptor, Bool)
@@ -45,6 +47,7 @@ parseScreenDescriptor = do
     )
   background <- parseWord8
   char '\NUL'
+
   return (Screen { screenWidth = width, screenHeight = height
                  , colorResolution = resolution
                  , bitsPerPixelS = bitsPerPixel
@@ -55,7 +58,7 @@ parseColorMap :: Bool -> Word8 -> Parser (Maybe [ColorMapBlock])
 parseColorMap p bitsPerPixel =
   if p then
       let n = 2 ^ bitsPerPixel
-      in pure Just <*> count n parseColorMapBlock -- TODO: use vector
+      in Just <$> count n parseColorMapBlock
   else return Nothing
 
 parseColorMapBlock :: Parser ColorMapBlock
@@ -63,9 +66,16 @@ parseColorMapBlock = do
   red <- parseWord8; green <- parseWord8; blue <- parseWord8
   return Color { red = red, green = green, blue = blue}
 
+parseExtensionBlock :: Parser ExtensionBlock
+parseExtensionBlock = do
+  char '!'   -- 0x21
+  function <- parseWord8
+  bytes <- manyTill (parseWord8 >>= take . fromIntegral) (char '\NUL')
+  return Extension { functionCode = function, dataBytes = bytes }
+
 parseImageDescriptor :: Parser ImageDescriptor
 parseImageDescriptor = do
-  char ',' -- 0x2C
+  char ','   -- 0x2C
   left <- parseWord16
   top <- parseWord16
   width <- parseWord16
@@ -80,6 +90,7 @@ parseImageDescriptor = do
     )
   colorMap <- parseColorMap usesColorMap bitsPerPixel
   pixels <- parseRaster height width bitsPerPixel interlaced
+
   return Image { imageLeft = left, imageTop = top
                , imageWidth = width, imageHeight = height
                , interlaced = interlaced
@@ -88,16 +99,34 @@ parseImageDescriptor = do
                , pixels = pixels
                }
 
--- TODO: support interlacing
 parseRaster :: Word16 -> Word16 -> Word8 -> Bool -> Parser [[Word8]]
 parseRaster rows cols bits interlaced = do
-  codeSize <- pure fromIntegral <*> parseWord8
-  pure (chunk (fromIntegral cols) . decodeLZW codeSize)
-    <*> manyTill (parseWord8 >>= take . fromIntegral) (char '\NUL')
+  codeSize <- fromIntegral <$> parseWord8
+  rows <- chunk (fromIntegral cols) . decodeLZW codeSize
+    <$> manyTill (parseWord8 >>= take . fromIntegral) (char '\NUL')
+  if interlaced
+    then return $ interlace rows (length rows)
+    else return rows
   where
     chunk :: Int -> [a] -> [[a]]
     chunk n [] = []
     chunk n xs = L.take n xs : chunk n (L.drop n xs)
+
+    interlace :: forall a. [a] -> Int -> [a]
+    interlace rows height = map snd $ M.toAscList $ pass1 M.empty rows 0
+      where
+        pass1 = pass 8 (pass2, 4)
+        pass2 = pass 8 (pass3, 2)
+        pass3 = pass 4 (pass4, 1)
+        pass4 = pass 2 (const . const, 0)
+
+        pass :: Int -> (M.Map Int a -> [a] -> Int -> M.Map Int a, Int)
+             -> M.Map Int a -> [a] -> Int -> M.Map Int a
+        pass incr (next, offset) rows ls@(l : lr) i
+          | i >= height = next rows ls offset
+          | otherwise   = pass incr (next, offset)
+                               (M.insert i l rows) lr (i + incr)
+        pass incr (next, offset) rows [] i = rows
 
 parseWord8 :: Parser Word8
 parseWord8 = B.head <$> take 1

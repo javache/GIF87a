@@ -6,7 +6,7 @@ import Data.Word (Word8, Word16)
 data Image = Header { signature :: ByteString
                     , screenDescriptor :: ScreenDescriptor
                     , globalColorMap :: Maybe [ColorMapBlock]
-                    , images :: [ImageDescriptor]
+                    , descriptors :: [Either ImageDescriptor ExtensionBlock]
                     } deriving (Eq, Show)
 
 data ScreenDescriptor = Screen { screenWidth :: Word16
@@ -25,6 +25,11 @@ data ImageDescriptor = Image { imageLeft :: Word16
                              , bitsPerPixelI :: Word8
                              , pixels :: [[Word8]]
                              } deriving (Eq, Show)
+
+
+data ExtensionBlock = Extension { functionCode :: Word8
+                                , dataBytes :: [ByteString]
+                                } deriving (Eq, Show)
 
 data ColorMapBlock = Color { red :: Word8
                            , green :: Word8

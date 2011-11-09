@@ -50,7 +50,7 @@ data Alphabet = Lookup (Map Word16 [Word8]) Word16 deriving (Show)
 
 initialAlphabet :: Word16 -> Alphabet
 initialAlphabet a =
-  let values = [(x, [fromIntegral x]) | x <- [0 .. a]]
+  let values = [(x, [fromIntegral x]) | x <- [0 .. a - 1]]
   in Lookup (M.fromList values) (a + 1)
 
 extendAlphabet :: Alphabet -> [Word8] -> [Word8] -> Alphabet

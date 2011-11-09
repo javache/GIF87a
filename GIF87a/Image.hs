@@ -26,7 +26,6 @@ data ImageDescriptor = Image { imageLeft :: Word16
                              , pixels :: [[Word8]]
                              } deriving (Eq, Show)
 
-
 data ExtensionBlock = Extension { functionCode :: Word8
                                 , dataBytes :: [ByteString]
                                 } deriving (Eq, Show)

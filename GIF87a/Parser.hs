@@ -122,6 +122,8 @@ parseRaster rows cols bits interlaced = do
                                (M.insert i l rows) lr (i + incr)
         pass incr (next, offset) rows [] i = rows
 
+-- * Utilities
+
 parseWord8 :: Parser Word8
 parseWord8 = take 1 >>= readBits getWord8
 

@@ -3,52 +3,88 @@
 module GIF87a.Encoder (encode) where
 
 import Control.Monad (when, forM_)
-import Data.Binary.BitPut
+import Data.Binary.Put
+import Data.Binary.BitPut hiding (putByteString)
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
-import Data.Char (digitToInt)
-import Data.Maybe (fromJust, isJust)
-import Data.Word (Word8)
+import Data.Char (ord)
+import Data.Int (Int64)
+import Data.Maybe (fromMaybe, isJust)
+import Data.Word (Word8, Word16)
 import Prelude hiding (putChar)
 
 import GIF87a.Image
 import GIF87a.LZW
 
 encode :: Image -> BL.ByteString
-encode img = runBitPut $ do
+encode img = runPut $ do
   putByteString $ signature img
   encodeScreenDescriptor (screenDescriptor img)
                          (isJust $ globalColorMap img)
-  when (isJust $ globalColorMap img) $
-    forM_ (fromJust $ globalColorMap img) encodeColorMapBlock
+  forM_ (fromMaybe [] $ globalColorMap img) encodeColorMapBlock
+  forM_ (descriptors img) (\block -> case block of
+      Left a  -> encodeImageDescriptor a
+      Right b -> encodeExtensionBlock b
+    )
+  putChar ';'
 
-encodeScreenDescriptor :: ScreenDescriptor -> Bool -> BitPut
+encodeScreenDescriptor :: ScreenDescriptor -> Bool -> Put
 encodeScreenDescriptor descr globalColorMap = do
-  putBits    $ screenWidth descr
-  putBits    $ screenHeight descr
-  putBit       globalColorMap
-  putNBits 3 $ colorResolution descr
-  putBit       False
-  putNBits 3 $ bitsPerPixelS descr
-  putBits    $ backgroundColorIndex descr
+  putWord16le $ screenWidth descr
+  putWord16le $ screenHeight descr
+  putLazyByteString $ runBitPut $ do
+    putBit globalColorMap
+    putNBits 3 $ colorResolution descr - 1
+    putBit False
+    putNBits 3 $ bitsPerPixelS descr - 1
+  putWord8 $ backgroundColorIndex descr
   putChar '\NUL'
 
-encodeColorMapBlock :: ColorMapBlock -> BitPut
-encodeColorMapBlock color = forM_ [red, green, blue] (\f -> putBits $ f color)
+encodeColorMapBlock :: ColorMapBlock -> Put
+encodeColorMapBlock color = forM_ [red, green, blue] (\f -> putWord8 $ f color)
 
-encodeExtensionBlock :: ExtensionBlock -> BitPut
+encodeExtensionBlock :: ExtensionBlock -> Put
 encodeExtensionBlock block = do
   putChar '!'
-  putBits $
+  putWord8 $ functionCode block
+  forM_ (dataBytes block) (\block -> do
+      putWord8 $ fromIntegral $ B.length block
+      putByteString block
+    )
   putChar '\NUL'
 
-encodeImageDescriptor :: ImageDescriptor -> BitPut
+encodeImageDescriptor :: ImageDescriptor -> Put
 encodeImageDescriptor img = do
   putChar ','
+  putWord16le $ imageLeft img
+  putWord16le $ imageTop img
+  putWord16le $ imageWidth img
+  putWord16le $ imageHeight img
+  putLazyByteString $ runBitPut $ do
+    putBit $ isJust $ localColorMap img
+    putBit $ interlaced img
+    putNBits 3 (0 :: Word8)
+    putNBits 3 $ bitsPerPixelI img - 1
+  forM_ (fromMaybe [] $ localColorMap img) encodeColorMapBlock
+  encodeRaster img
 
-encodeRaster :: [[Word8]] -> Bool -> BitPut
-encodeRaster rows interlaced = do
+encodeRaster :: ImageDescriptor -> Put
+encodeRaster img = do
+  -- TODO: interlace
+  let codeSize = max 2 $ bitsPerPixelI img
+      encoded = encodeLZW (fromIntegral codeSize) (concat $ pixels img)
+  putWord8 codeSize
+  forM_ (chunk 254 encoded) (\block -> do
+      putWord8 $ fromIntegral $ BL.length block
+      putLazyByteString block
+    )
   putChar '\NUL'
+  where
+    chunk :: Int64 -> BL.ByteString -> [BL.ByteString]
+    chunk n xs
+      | BL.null xs = []
+      | otherwise  = let (head, tail) = BL.splitAt n xs
+                     in head : chunk n tail
 
-putChar :: Char -> BitPut
-putChar c = putBits (fromIntegral $ digitToInt c :: Word8)
+putChar :: Char -> Put
+putChar = putWord8 . fromIntegral . ord

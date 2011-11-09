@@ -12,8 +12,6 @@ import qualified Data.Map as M
 import Data.Word (Word8, Word16)
 import Prelude hiding (take)
 
-import Debug.Trace
-
 import GIF87a.Image
 import GIF87a.LZW
 
@@ -102,11 +100,11 @@ parseImageDescriptor = do
 parseRaster :: Word16 -> Word16 -> Word8 -> Bool -> Parser [[Word8]]
 parseRaster rows cols bits interlaced = do
   codeSize <- fromIntegral <$> parseWord8
-  rows <- chunk (fromIntegral cols) . decodeLZW codeSize
+  bytes <- decodeLZW codeSize . B.concat
     <$> manyTill (parseWord8 >>= take . fromIntegral) (char '\NUL')
-  if interlaced
-    then return $ interlace rows (length rows)
-    else return rows
+  let rows = chunk (fromIntegral cols) bytes
+  return $ if interlaced then interlace rows (length rows)
+                         else rows
   where
     chunk :: Int -> [a] -> [[a]]
     chunk n [] = []

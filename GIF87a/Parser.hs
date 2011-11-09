@@ -1,8 +1,7 @@
 {-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
 module GIF87a.Parser (parser) where
 
-import Control.Applicative
-import Control.Monad
+import Control.Applicative ((<$>), (<|>))
 import Data.Attoparsec.Char8
 import Data.Binary.Strict.BitGet
 import Data.ByteString (ByteString)
@@ -20,9 +19,8 @@ parser = do
   signature <- string "GIF87a"
   (screen, usesGlobalColorMap) <- parseScreenDescriptor
   colorMap <- parseColorMap usesGlobalColorMap (bitsPerPixelS screen)
-  blocks <- many1 $
-    (Left <$> parseImageDescriptor) <|>
-    (Right <$> parseExtensionBlock)
+  blocks <- many1 $ (Left <$> parseImageDescriptor)
+                  <|> (Right <$> parseExtensionBlock)
   char ';'  -- 0x3B
 
   return Header { signature = signature
@@ -54,10 +52,9 @@ parseScreenDescriptor = do
 
 parseColorMap :: Bool -> Word8 -> Parser (Maybe [ColorMapBlock])
 parseColorMap p bitsPerPixel =
-  if p then
-      let n = 2 ^ bitsPerPixel
-      in Just <$> count n parseColorMapBlock
-  else return Nothing
+  if p then let n = 2 ^ bitsPerPixel
+            in Just <$> count n parseColorMapBlock
+       else return Nothing
 
 parseColorMapBlock :: Parser ColorMapBlock
 parseColorMapBlock = do
@@ -103,8 +100,7 @@ parseRaster rows cols bits interlaced = do
   bytes <- decodeLZW codeSize . B.concat
     <$> manyTill (parseWord8 >>= take . fromIntegral) (char '\NUL')
   let rows = chunk (fromIntegral cols) bytes
-  return $ if interlaced then interlace rows (length rows)
-                         else rows
+  return $ if interlaced then interlace rows (length rows) else rows
   where
     chunk :: Int -> [a] -> [[a]]
     chunk n [] = []
@@ -127,7 +123,7 @@ parseRaster rows cols bits interlaced = do
         pass incr (next, offset) rows [] i = rows
 
 parseWord8 :: Parser Word8
-parseWord8 = B.head <$> take 1
+parseWord8 = take 1 >>= readBits getWord8
 
 parseWord16 :: Parser Word16
 parseWord16 = take 2 >>= readBits getWord16le

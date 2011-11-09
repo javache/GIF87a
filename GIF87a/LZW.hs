@@ -1,14 +1,15 @@
 module GIF87a.LZW (encodeLZW, decodeLZW) where
 
-import Control.Applicative
-import Control.Monad
-import Data.Bits
+import Control.Applicative ((<$>))
+import Control.Monad (liftM)
+import Data.Bits (shiftL, shiftR, (.&.), (.|.))
 import Data.Binary.Strict.BitGet
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as B
+import Data.Map (Map)
+import Data.Maybe (fromMaybe)
+import qualified Data.Map as M
 import Data.Word (Word8, Word16, Word64)
-
-import Debug.Trace
 
 -- | Encode a list of bytes in a bytestring using LZW
 encodeLZW :: [Word8] -> ByteString
@@ -45,30 +46,29 @@ decodeLZW initialCodeSize input =
 
 -- * Alphabet methods
 
--- TODO: use a suitable datatype for alphabet
-data Alphabet = Lookup [[Word8]] Int deriving (Show)
+data Alphabet = Lookup (Map Word16 [Word8]) Word16 deriving (Show)
 
 initialAlphabet :: Word16 -> Alphabet
-initialAlphabet a = Lookup [[fromIntegral x] | x <- [0 .. a]]
-                           (fromIntegral $ a + 1)
+initialAlphabet a =
+  let values = [(x, [fromIntegral x]) | x <- [0 .. a]]
+  in Lookup (M.fromList values) (a + 1)
 
 extendAlphabet :: Alphabet -> [Word8] -> [Word8] -> Alphabet
 extendAlphabet alphabet@(Lookup codes max) prev new =
   if null prev || max >= 4096 then alphabet
-  else Lookup (codes ++ [prev ++ [head new]]) (max + 1)
+  else Lookup (M.insert max (prev ++ [head new]) codes) (max + 1)
 
 lookupAlphabet :: Alphabet -> [Word8] -> Word16 -> [Word8]
 lookupAlphabet (Lookup codes max) previous index =
-  let index' = fromIntegral index :: Int
-  in if index' < max then codes !! index'
-     else previous ++ [head previous]
+  fromMaybe (previous ++ [head previous])
+            (M.lookup (fromIntegral index) codes)
 
 codeSize :: Alphabet -> Int
 codeSize (Lookup _ max) = min 12 $ floor (logBase 2 $ fromIntegral max) + 1
 
 -- * Utilities
 
--- | Reverse the order bits of each byte in the bytestring
+-- | Reverse the order of bits of each byte in the bytestring
 -- source: http://graphics.stanford.edu/~seander/bithacks.html
 reverseBytes :: ByteString -> ByteString
 reverseBytes = B.map (\b -> fromIntegral

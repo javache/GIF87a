@@ -47,10 +47,9 @@ encodeExtensionBlock :: ExtensionBlock -> Put
 encodeExtensionBlock block = do
   putChar '!'
   putWord8 $ functionCode block
-  forM_ (dataBytes block) (\block -> do
-      putWord8 $ fromIntegral $ B.length block
-      putByteString block
-    )
+  forM_ (dataBytes block) $ \block -> do
+    putWord8 $ fromIntegral $ B.length block
+    putByteString block
   putChar '\NUL'
 
 encodeImageDescriptor :: ScreenDescriptor -> ImageDescriptor -> Put
@@ -76,10 +75,9 @@ encodeRaster screen img = do
                          else bitsPerPixelS screen
       encoded = encodeLZW (fromIntegral codeSize) (concat $ pixels img)
   putWord8 codeSize
-  forM_ (chunk 254 encoded) (\block -> do
-      putWord8 $ fromIntegral $ BL.length block
-      putLazyByteString block
-    )
+  forM_ (chunk 254 encoded) $ \block -> do
+    putWord8 $ fromIntegral $ BL.length block
+    putLazyByteString block
   putChar '\NUL'
   where
     chunk :: Int64 -> BL.ByteString -> [BL.ByteString]

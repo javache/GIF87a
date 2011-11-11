@@ -32,7 +32,7 @@ options = GIF87a { encode    = def &= help "Re-encode the images"
 main :: IO ()
 main = do
   args <- cmdArgs options
-  forM_ (files args) (\path -> do
+  forM_ (files args) $ \path -> do
     input <- B.readFile path
     case parseOnly Parser.parser input of
       Left err  -> putStrLn err
@@ -45,4 +45,3 @@ main = do
           print img'
           let x = pixels $ head $ lefts $ descriptors img'
           print (length x, nub $ map length x)
-    )

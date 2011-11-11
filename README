@@ -17,7 +17,7 @@ The main application executable, gif87a, takes as its arguments a
 list of gif87a-files. The output will depend on the given options:
 
   -e --encode     Re-encode the images
-  -p --parse      Show the parsed image
+  -p --parse      Show the internal structure of the image
   -t --transform  Apply transformations to each image
 
 Code

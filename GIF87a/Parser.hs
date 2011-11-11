@@ -33,8 +33,8 @@ parseScreenDescriptor :: Parser (ScreenDescriptor, Bool)
 parseScreenDescriptor = do
   width <- parseWord16
   height <- parseWord16
-  (colorMap, resolution, bitsPerPixel) <-
-    take 1 >>= readBits (do
+  (colorMap, resolution, bitsPerPixel) <- take 1 >>=
+    readBits (do
       m <- getBit
       r <- getAsWord8 3
       skip 1

@@ -50,7 +50,6 @@ decodeLZW initialCodeSize input =
 -- | Encode a list of bytes in a bytestring using LZW
 encodeLZW :: Int -> [Word8] -> BL.ByteString
 encodeLZW initialCodeSize input = lazyReverseBytes $ runBitPut $ do
-  -- TODO: what if max dictionary size is reached?
   let alphabet = initialEAlphabet clearCode
   putBits alphabet clearCode
   (alphabet', last) <- foldM encodeWord (alphabet, []) input
@@ -122,8 +121,9 @@ initialEAlphabet a =
 
 extendEAlphabet :: EAlphabet -> [Word8] -> EAlphabet
 extendEAlphabet alphabet@(EAlphabet codes max) word =
-  if max >= 4096 then alphabet
-  else EAlphabet (M.insert word (max + 1) codes) (max + 1)
+  if max + 1 >= 4096 then alphabet
+  else -- trace ("Adding code " ++ (show (max + 1, word))) $
+       EAlphabet (M.insert word (max + 1) codes) (max + 1)
 
 lookupEAlphabet :: EAlphabet -> [Word8] -> Maybe Word16
 lookupEAlphabet (EAlphabet codes max) word = M.lookup word codes

@@ -23,7 +23,7 @@ encode img = runPut $ do
                          (isJust $ globalColorMap img)
   forM_ (fromMaybe [] $ globalColorMap img) encodeColorMapBlock
   forM_ (descriptors img) (\block -> case block of
-      Left a  -> encodeImageDescriptor a
+      Left a  -> encodeImageDescriptor (screenDescriptor img) a
       Right b -> encodeExtensionBlock b
     )
   putChar ';'
@@ -53,8 +53,8 @@ encodeExtensionBlock block = do
     )
   putChar '\NUL'
 
-encodeImageDescriptor :: ImageDescriptor -> Put
-encodeImageDescriptor img = do
+encodeImageDescriptor :: ScreenDescriptor -> ImageDescriptor -> Put
+encodeImageDescriptor screen img = do
   putChar ','
   putWord16le $ imageLeft img
   putWord16le $ imageTop img
@@ -62,16 +62,18 @@ encodeImageDescriptor img = do
   putWord16le $ imageHeight img
   putLazyByteString $ runBitPut $ do
     putBit $ isJust $ localColorMap img
-    putBit $ interlaced img
+    putBit $ False
     putNBits 3 (0 :: Word8)
     putNBits 3 $ bitsPerPixelI img - 1
   forM_ (fromMaybe [] $ localColorMap img) encodeColorMapBlock
-  encodeRaster img
+  encodeRaster screen img
 
-encodeRaster :: ImageDescriptor -> Put
-encodeRaster img = do
-  -- TODO: interlace
-  let codeSize = max 2 $ bitsPerPixelI img
+encodeRaster :: ScreenDescriptor -> ImageDescriptor -> Put
+encodeRaster screen img = do
+  -- if there's no local color table, use the global bits/pixels
+  let codeSize = max 2 $ if (isJust $ localColorMap img)
+                         then bitsPerPixelI img
+                         else bitsPerPixelS screen
       encoded = encodeLZW (fromIntegral codeSize) (concat $ pixels img)
   putWord8 codeSize
   forM_ (chunk 254 encoded) (\block -> do

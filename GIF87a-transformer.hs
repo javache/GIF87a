@@ -10,6 +10,7 @@ import System.IO (stdout)
 import GIF87a.Encoder
 import GIF87a.Image
 import GIF87a.Parser
+import GIF87a.Transformations
 
 -- | Runs the main program
 main :: IO ()
@@ -19,5 +20,5 @@ main = do
     input <- B.readFile path
     case parseOnly parser input of
       Left err  -> putStrLn err
-      Right img -> BL.hPut stdout $ encode img
+      Right img -> BL.hPut stdout $ encode $ grayscale $ mirror Horizontal img
     )

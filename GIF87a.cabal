@@ -26,3 +26,7 @@ Executable gif-parser
 Executable gif-encoder
   Build-Depends:     base >= 3 && < 5
   Main-is:           GIF87a-encoder.hs
+
+Executable gif-transformer
+  Build-Depends:     base >= 3 && < 5
+  Main-is:           GIF87a-transformer.hs

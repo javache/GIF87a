@@ -6,6 +6,7 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as BL
 import Data.Word (Word8)
 import Test.QuickCheck
+import Text.Printf
 
 import GIF87a.LZW
 
@@ -19,8 +20,11 @@ instance Arbitrary Payload where
       fromIntegral <$> choose (0 :: Int, 2 ^ initialCodeSize - 1)
     return $ Payload initialCodeSize words
 
-encodeDecode :: Payload -> Bool
-encodeDecode (Payload codeSize words) =
+prop_encodeDecode :: Payload -> Bool
+prop_encodeDecode (Payload codeSize words) =
   let lbs = encodeLZW codeSize words
       bs = B.concat $ BL.toChunks lbs
   in words == decodeLZW codeSize bs
+
+tests = [ ("encode.decode/id", quickCheck prop_encodeDecode) ]
+main  = mapM_ (\(s,a) -> printf "%-25s: " s >> a) tests

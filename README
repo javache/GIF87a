@@ -1,0 +1,36 @@
+Installation
+------------
+
+Chdir to the project directory and run `cabal install`. The main executable
+will be placed in your ~cabal/bin folder.
+
+Usage
+-----
+
+You can use this utility to perform simple operations on GIF87a-files.
+Since GIF-files with this exact format are hard to come by these days,
+use ImageMagick's convert to convert other images to GIF87a.
+
+  convert input.jpg output.gif87
+
+The main application executable, gif87a, takes as its arguments a
+list of gif87a-files. The output will depend on the given options:
+
+  -e --encode     Re-encode the images
+  -p --parse      Show the parsed image
+  -t --transform  Apply transformations to each image
+
+Code
+----
+
+Source-code can be found in the GIF87a-folder, the main executable in
+GIF87a.hs. The code is organized as follows
+
+  GIF87a.Image:           datatype for parsed images
+  GIF87a.Parser:          AttoParsec-parser
+  GIF87a.Encoder:         image encoder
+  GIF87a.Transformations: some higher order functions and predefined
+                          transformations on images
+  GIF87a.LZW              implementation of the GIF LZW alorithm
+
+Some tests can be found in the test-folder.

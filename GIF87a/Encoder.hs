@@ -62,7 +62,7 @@ encodeImageDescriptor screen img = do
   putWord16le $ imageHeight img
   putLazyByteString $ runBitPut $ do
     putBit $ isJust $ localColorMap img
-    putBit $ False
+    putBit False
     putNBits 3 (0 :: Word8)
     putNBits 3 $ bitsPerPixelI img - 1
   forM_ (fromMaybe [] $ localColorMap img) encodeColorMapBlock
@@ -71,7 +71,7 @@ encodeImageDescriptor screen img = do
 encodeRaster :: ScreenDescriptor -> ImageDescriptor -> Put
 encodeRaster screen img = do
   -- if there's no local color table, use the global bits/pixels
-  let codeSize = max 2 $ if (isJust $ localColorMap img)
+  let codeSize = max 2 $ if isJust $ localColorMap img
                          then bitsPerPixelI img
                          else bitsPerPixelS screen
       encoded = encodeLZW (fromIntegral codeSize) (concat $ pixels img)

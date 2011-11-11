@@ -14,8 +14,6 @@ import Data.Maybe (fromMaybe, fromJust)
 import qualified Data.Map as M
 import Data.Word (Word8, Word16, Word64)
 
-import Debug.Trace
-
 -- | * Encode and decode
 
 -- | Decode a bytestring using LZW to a list of bytes
@@ -65,16 +63,15 @@ encodeLZW initialCodeSize input = lazyReverseBytes $ runBitPut $ do
       in case lookupEAlphabet alphabet new of
         Just code -> return (alphabet, new)
         Nothing   -> do
-          let alphabet' = extendEAlphabet alphabet new
-          putBits alphabet $ fromJust $ lookupEAlphabet alphabet' current
-          return (alphabet', [next])
+          putBits alphabet $ fromJust $ lookupEAlphabet alphabet current
+          return (extendEAlphabet alphabet new, [next])
 
     putBits :: EAlphabet -> Word16 -> BitPut
     putBits alphabet code = do
       let bytes = runPut $ putWord16le code
       foldM_ (\n word -> do
           let bits = min 8 n
-              word' = reverseByte word `shiftR` (fromIntegral $ 8 - bits)
+              word' = reverseByte word `shiftR` fromIntegral (8 - bits)
           putNBits bits word'
           return $ n - bits
         ) (codeSize alphabet) (BL.unpack bytes)
@@ -88,8 +85,7 @@ codeSize :: Alphabet a => a -> Int
 codeSize a = min 12 $ floor (logBase 2 $ fromIntegral $ maxKey a) + 1
 
 -- ** Decoder alphabet methods
-data DAlphabet = DAlphabet (Map Word16 [Word8]) Word16
-                 deriving (Show)
+data DAlphabet = DAlphabet (Map Word16 [Word8]) Word16 deriving (Show)
 instance Alphabet DAlphabet where
   maxKey (DAlphabet _ max) = max
 
@@ -109,8 +105,7 @@ lookupDAlphabet (DAlphabet codes max) previous index =
             (M.lookup (fromIntegral index) codes)
 
 -- ** Encoder alphabet methods
-data EAlphabet = EAlphabet (Map [Word8] Word16) Word16
-                 deriving (Show)
+data EAlphabet = EAlphabet (Map [Word8] Word16) Word16 deriving (Show)
 instance Alphabet EAlphabet where
   maxKey (EAlphabet _ max) = max
 
@@ -122,8 +117,7 @@ initialEAlphabet a =
 extendEAlphabet :: EAlphabet -> [Word8] -> EAlphabet
 extendEAlphabet alphabet@(EAlphabet codes max) word =
   if max + 1 >= 4096 then alphabet
-  else -- trace ("Adding code " ++ (show (max + 1, word))) $
-       EAlphabet (M.insert word (max + 1) codes) (max + 1)
+  else EAlphabet (M.insert word (max + 1) codes) (max + 1)
 
 lookupEAlphabet :: EAlphabet -> [Word8] -> Maybe Word16
 lookupEAlphabet (EAlphabet codes max) word = M.lookup word codes

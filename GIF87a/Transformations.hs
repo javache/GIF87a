@@ -5,10 +5,18 @@ import Data.Word (Word8)
 
 import GIF87a.Image
 
+mapColors :: (ColorMapBlock -> ColorMapBlock) -> Image -> Image
+mapColors f img = img { globalColorMap = colors' }
+  where colors' = fmap (map f) $ globalColorMap img
+
+mapImages :: (ImageDescriptor -> ImageDescriptor) -> Image -> Image
+mapImages f img =
+  let descriptors' = map (either (Left . f) Right) $ descriptors img
+  in img { descriptors = descriptors' }
+
 grayscale :: Image -> Image
-grayscale img = img { globalColorMap = colors' }
-  where colors' = fmap (map convertToGrayscale) $ globalColorMap img
-        convertToGrayscale color =
+grayscale img = mapColors convertToGrayscale img
+  where convertToGrayscale color =
           let luminance = round
                         $ (realToFrac $ red color :: Float) * 0.3
                         + (realToFrac $ green color :: Float) * 0.59
@@ -17,9 +25,7 @@ grayscale img = img { globalColorMap = colors' }
 
 data Direction = Horizontal | Vertical
 mirror :: Direction -> Image -> Image
-mirror direction img =
-  let descriptors' = map (either (Left . modify) Right) $ descriptors img
-  in img { descriptors = descriptors' }
+mirror direction img = mapImages modify img
   where
     modify :: ImageDescriptor -> ImageDescriptor
     modify descr = descr { pixels = mirror' direction $ pixels descr }

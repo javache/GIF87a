@@ -22,7 +22,7 @@ image = Header { signature = "GIF87a"
                    [ Color { red = 255, green = 255, blue = 255 }
                    , Color {red = 0, green = 0, blue = 0 }]
                , descriptors =
-                   [ Left ( Image { imageLeft = 0
+                   [ Left Image { imageLeft = 0
                                   , imageTop = 0
                                   , imageWidth = 1
                                   , imageHeight = 1
@@ -31,7 +31,7 @@ image = Header { signature = "GIF87a"
                                   , bitsPerPixelI = 1
                                   , pixels = [[ 1 ]]
                                   }
-                    ) ]
+                   ]
                }
 
 testEncoder :: Bool
